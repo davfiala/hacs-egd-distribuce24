@@ -24,6 +24,10 @@ class AuthenticationError(ApiError):
     """Credentials were rejected."""
 
 
+class AccessPeriodError(ApiError):
+    """The account cannot read the entire requested historical period."""
+
+
 @dataclass(frozen=True)
 class Reading:
     timestamp: datetime
@@ -86,6 +90,22 @@ class EgdClient:
                     raise AuthenticationError("Authentication rejected")
                 if response.status == 400 and url == TOKEN_URL:
                     raise AuthenticationError("Credentials rejected")
+                if response.status == 400 and url == BASE_URL + "/spotreby":
+                    try:
+                        error = await response.json()
+                    except (aiohttp.ClientError, ValueError):
+                        error = {}
+                    message = error.get("message", "") if isinstance(error, dict) else ""
+                    if (
+                        isinstance(error, dict)
+                        and error.get("error") == "validation_error"
+                        and isinstance(message, str)
+                        and "období" in message
+                        and "nemáte oprávnění" in message
+                    ):
+                        raise AccessPeriodError(
+                            "EG.D: no access to the requested historical period"
+                        )
                 if response.status >= 300:
                     raise ApiError(f"EG.D HTTP {response.status}")
                 return await response.json()
@@ -140,26 +160,44 @@ class EgdClient:
         return result
 
     async def readings(self, ean, profile, start, end):
-        """Fetch [start, end), split below the 3000-record API limit."""
+        """Fetch recent data first, stopping at the account's historical boundary.
+
+        On a period-permission error, shrink the window down to one day.
+        Other HTTP 400 errors remain errors. A completely inaccessible recent
+        period must fail, rather than pretending setup downloaded data.
+        """
         result = {}
-        while start < end:
-            stop = min(start + timedelta(days=28), end)
-            payload = await self.get(
-                "/spotreby",
-                {
-                    "ean": ean,
-                    "profile": profile,
-                    "from": start.astimezone(UTC)
-                    .isoformat(timespec="milliseconds")
-                    .replace("+00:00", "Z"),
-                    "to": (stop - timedelta(milliseconds=1))
-                    .astimezone(UTC)
-                    .isoformat(timespec="milliseconds")
-                    .replace("+00:00", "Z"),
-                },
-            )
+        had_access = False
+        stop = end
+        window = timedelta(days=28)
+        while start < stop:
+            begin = max(start, stop - window)
+            try:
+                payload = await self.get(
+                    "/spotreby",
+                    {
+                        "ean": ean,
+                        "profile": profile,
+                        "from": begin.astimezone(UTC)
+                        .isoformat(timespec="milliseconds")
+                        .replace("+00:00", "Z"),
+                        "to": (stop - timedelta(milliseconds=1))
+                        .astimezone(UTC)
+                        .isoformat(timespec="milliseconds")
+                        .replace("+00:00", "Z"),
+                    },
+                )
+            except AccessPeriodError:
+                span = stop - begin
+                if span <= timedelta(days=1):
+                    if had_access:
+                        break
+                    raise
+                window = timedelta(days=max(1, span.days // 2))
+                continue
+            had_access = True
             for reading in parse_readings(payload, ean, profile):
-                if start <= reading.timestamp < stop:
+                if begin <= reading.timestamp < stop:
                     result[reading.timestamp] = reading
-            start = stop
+            stop = begin
         return sorted(result.values(), key=lambda item: item.timestamp)

@@ -1,3 +1,12 @@
+# Ověření opravy 0.1.1
+
+Provedeno 21. 9. 2026. Původní HTTP 400 se podařilo reprodukovat: EG.D
+odmítlo část třicetidenního období kvůli rozsahu oprávnění účtu.
+Opravený klient načetl 288 záznamů za tři dostupné dny a skončil na hranici
+přístupné historie. Prošlo 43 jednotkových testů, včetně omezeného historického
+přístupu, úplného odmítnutí přístupu a ostatních chyb HTTP 400.
+Prostředí Home Assistantu nebylo vytvářeno ani spouštěno.
+
 # Ověření verze 0.1.0
 
 Provedeno 21. 9. 2026.

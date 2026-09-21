@@ -2,7 +2,7 @@ from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock
 
 import pytest
-from egd_client_test.api import PRAGUE, ApiError, AuthenticationError, EgdClient
+from egd_client_test.api import PRAGUE, AccessPeriodError, ApiError, AuthenticationError, EgdClient
 
 
 class Response:
@@ -86,8 +86,9 @@ async def test_chunking_and_exclusive_end():
     await client.readings("859182400000000000", "DCQC", start, start + timedelta(days=60))
     assert client.get.await_count == 3
     calls = client.get.await_args_list
-    assert calls[0].args[1]["to"] == "2026-01-28T23:59:59.999Z"
-    assert calls[1].args[1]["from"] == "2026-01-29T00:00:00.000Z"
+    assert calls[0].args[1]["from"] == "2026-02-02T00:00:00.000Z"
+    assert calls[0].args[1]["to"] == "2026-03-01T23:59:59.999Z"
+    assert calls[1].args[1]["from"] == "2026-01-05T00:00:00.000Z"
 
 
 @pytest.mark.asyncio
@@ -97,3 +98,71 @@ async def test_local_yesterday_boundary():
     end = datetime(2026, 9, 21, tzinfo=PRAGUE).astimezone(UTC)
     await client.readings("859182400000000000", "DCQC", end - timedelta(days=1), end)
     assert client.get.await_args.args[1]["to"] == "2026-09-20T21:59:59.999Z"
+
+
+@pytest.mark.asyncio
+async def test_historical_permission_error_is_distinct():
+    client = EgdClient(
+        Session(
+            [
+                Response(
+                    400,
+                    {
+                        "error": "validation_error",
+                        "message": "V požadovaném období nemáte oprávnění na data odběrného místa.",
+                    },
+                )
+            ]
+        ),
+        "id",
+        "secret",
+    )
+    with pytest.raises(AccessPeriodError):
+        await client._request("GET", "https://data.distribuce24.cz/rest/spotreby")
+
+
+@pytest.mark.asyncio
+async def test_available_recent_history_survives_old_permission_boundary():
+    client = EgdClient(None, "id", "secret")
+    boundary = datetime(2026, 9, 1, tzinfo=UTC)
+
+    async def get(path, params):
+        if datetime.fromisoformat(params["from"]) < boundary:
+            raise AccessPeriodError("historical boundary")
+        return {
+            "ean/eic": "859182400000000000",
+            "profile": "DCQC",
+            "units": "kWh",
+            "data": [{"timestamp": params["from"], "value": 1, "status": "W"}],
+        }
+
+    client.get = AsyncMock(side_effect=get)
+    readings = await client.readings(
+        "859182400000000000",
+        "DCQC",
+        datetime(2026, 8, 22, tzinfo=UTC),
+        datetime(2026, 9, 21, tzinfo=UTC),
+    )
+    assert readings
+    assert readings[0].timestamp == boundary
+    assert client.get.await_count < 16
+
+
+@pytest.mark.asyncio
+async def test_no_access_even_to_latest_day_is_not_silenced():
+    client = EgdClient(None, "id", "secret")
+    client.get = AsyncMock(side_effect=AccessPeriodError("denied"))
+    start = datetime(2026, 1, 1, tzinfo=UTC)
+    with pytest.raises(AccessPeriodError):
+        await client.readings("859182400000000000", "DCQC", start, start + timedelta(days=30))
+    assert client.get.await_count <= 6
+
+
+@pytest.mark.asyncio
+async def test_other_http_400_is_not_silenced_or_retried():
+    client = EgdClient(None, "id", "secret")
+    client.get = AsyncMock(side_effect=ApiError("EG.D HTTP 400"))
+    start = datetime(2026, 1, 1, tzinfo=UTC)
+    with pytest.raises(ApiError, match="HTTP 400"):
+        await client.readings("859182400000000000", "DCQC", start, start + timedelta(days=30))
+    assert client.get.await_count == 1

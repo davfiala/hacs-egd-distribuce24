@@ -1,6 +1,6 @@
 # EG.D Distribuce24 pro Home Assistant
 
-Vlastní integrace pro denní stahování elektřiny z EG.D OpenAPI. Verze **0.1.0 – beta**.
+Vlastní integrace pro denní stahování elektřiny z EG.D OpenAPI. Verze **0.1.1 – beta**.
 Repozitář: https://github.com/davfiala/hacs-egd-distribuce24
 
 Instalace přes HACS jako vlastní repozitář typu **Integrace**.
@@ -13,7 +13,7 @@ Integrace není zařazena do výchozího katalogu HACS.
 - Měření C1: odběr `DCQC`, volitelně přetoky `DSQC`.
 - Měření A/B: energie odběru `ICQ2`, volitelně přetoky `ISQ2` (nikoli výkon v kW).
 - Token uchovávaný jen v paměti, obnova každý den a jeden opakovaný pokus při odmítnutí tokenu.
-- Počáteční historie 30 dní, následně denní kontrola s překryvem 14 dní pro opravy a pozdní odečty.
+- Počáteční historie až 30 dní podle oprávnění účtu, následně denní kontrola s překryvem 14 dní pro opravy a pozdní odečty.
 - Po delším vypnutí dočtení od posledního staženého období, dotazy rozdělené po 28 dnech.
 - Externí hodinové statistiky pro panel Energie. Opakování a opravy historie nepřičítají spotřebu znovu.
 - Senzory poslední čtvrthodiny, času odečtu a poslední synchronizace pro každý profil.
@@ -54,6 +54,11 @@ Po úspěšném odpoledním stažení se další síťové volání ten den nepr
 Pokud první stažení proběhlo ráno, proběhne ještě odpolední aktualizace.
 Při chybě se běžná aktualizace opakuje nejdříve při příštím hodinovém cyklu;
 opakování neúspěšného prvního nastavení řídí Home Assistant.
+
+Stahování začíná nejnovějšími daty. Pokud EG.D odmítne starší období kvůli
+rozsahu oprávnění, dotaz se postupně zkrátí až na jeden den. Po dosažení první
+nepřístupné starší části se vrátí již načtená historie. Pokud není přístupný ani
+nejnovější den, chyba zůstává viditelná; jiné chyby HTTP 400 se nezamlčují.
 
 Konec dotazu odpovídá včerejšímu dni v Praze. Interně se ukládají časy UTC, takže nedochází
 ke sloučení opakovaných hodin při změně letního času.
