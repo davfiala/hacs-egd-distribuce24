@@ -1,0 +1,33 @@
+{
+  "title": "EG.D Distribuce24",
+  "config": {
+    "step": {
+      "user": {
+        "title": "Připojení k Distribuci24",
+        "description": "Zadejte údaje vygenerované v Distribuci24 v sekci Správa účtů → Vzdálený přístup – OpenAPI. V dalším kroku vyberete odběrná místa.",
+        "data": {"client_id": "Client ID", "client_secret": "Client secret", "include_export": "Stahovat také přetoky do sítě"}
+      },
+      "meters": {
+        "title": "Výběr odběrných míst",
+        "description": "Vyberte jedno nebo více odběrných míst. Nabízena jsou podporovaná měření A, B a C1. Stahovat se budou pouze vybraná místa.",
+        "data": {"meters": "Odběrná místa (EAN)"}
+      },
+      "reauth_confirm": {
+        "title": "Obnova přístupových údajů",
+        "description": "Nové údaje musí umožňovat přístup ke všem dříve vybraným odběrným místům.",
+        "data": {"client_id": "Client ID", "client_secret": "Client secret"}
+      }
+    },
+    "error": {
+      "invalid_auth": "Přístupové údaje byly odmítnuty.",
+      "cannot_connect": "K EG.D se nelze připojit. Zkuste to později.",
+      "select_meters": "Vyberte alespoň jedno dostupné odběrné místo."
+    },
+    "abort": {
+      "already_configured": "Některé z vybraných odběrných míst už je nastavené.",
+      "no_supported_meters": "Účet neobsahuje podporovaná odběrná místa s měřením A, B nebo C1.",
+      "missing_selected_meters": "Nové údaje neumožňují přístup ke všem vybraným odběrným místům.",
+      "reauth_successful": "Přístupové údaje byly aktualizovány."
+    }
+  }
+}

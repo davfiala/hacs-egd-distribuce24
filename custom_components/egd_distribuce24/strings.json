@@ -1,0 +1,33 @@
+{
+  "title": "EG.D Distribuce24",
+  "config": {
+    "step": {
+      "user": {
+        "title": "Connect to Distribuce24",
+        "description": "Enter credentials generated in Distribuce24 under Account management → Remote access – OpenAPI. Meter selection follows.",
+        "data": {"client_id": "Client ID", "client_secret": "Client secret", "include_export": "Download energy exported to the grid"}
+      },
+      "meters": {
+        "title": "Select electricity meters",
+        "description": "Select one or more meters. Only supported A, B and C1 meters are shown. Only selected meters will be downloaded.",
+        "data": {"meters": "Electricity meters (EAN)"}
+      },
+      "reauth_confirm": {
+        "title": "Renew Distribuce24 credentials",
+        "description": "New credentials must grant access to all previously selected meters.",
+        "data": {"client_id": "Client ID", "client_secret": "Client secret"}
+      }
+    },
+    "error": {
+      "invalid_auth": "Credentials were rejected.",
+      "cannot_connect": "Unable to connect to EG.D. Try again later.",
+      "select_meters": "Select at least one available meter."
+    },
+    "abort": {
+      "already_configured": "At least one selected meter is already configured.",
+      "no_supported_meters": "This account has no supported A, B or C1 meters.",
+      "missing_selected_meters": "New credentials do not provide access to all selected meters.",
+      "reauth_successful": "Credentials updated successfully."
+    }
+  }
+}
