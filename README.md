@@ -97,7 +97,8 @@ ruff format --check .
 
 Testy pokrývají klienta, agregaci, přechody letního času, opakované importy, opravy a
 koordinátor s náhradami rozhraní Home Assistantu. Nejde o plnohodnotný test běžícího HA.
-Samostatná sada `tests_ha/` je určena pro skutečné prostředí Home Assistantu na Linuxu.
+Neověřená sada `tests_ha/` je ponechána pro případný budoucí vývoj; v CI se nespouští.
+Instalaci a funkčnost v Home Assistantu ověřuje vlastník ručně.
 Podrobnosti provedených a zbývajících kontrol jsou v `VALIDATION.md`.
 
 Přístupové údaje jsou pouze v konfiguraci HA. Token se neukládá. Chybová hlášení

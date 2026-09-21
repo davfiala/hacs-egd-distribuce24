@@ -18,9 +18,11 @@ Provedeno 21. 9. 2026.
 ## Co zatím není ověřeno
 
 - Instalace, formuláře a panel Energie v běžícím Home Assistantu.
-- Sada `tests_ha` se skutečnými rozhraními HA je připravena v CI, zde nebyla spuštěna.
-  Místní Windows runtime má Python 3.12; dostupné Ubuntu nemělo potřebné testovací
-  prostředí a nepodařilo se v něm přeložit síťové jméno pro stažení runtime.
+- Automatický pokus o testy formulářů HA skončil chybou importu testovací sady
+  před načtením integrace. Funkčnost v HA tím nebyla ověřena.
+- Na přání vlastníka se v CI žádné prostředí Home Assistantu nevytváří.
+  Instalaci a funkčnost v HA ověří vlastník sám. Sada `tests_ha` zůstává
+  pouze jako neověřený podklad pro případný budoucí vývoj.
 - Skutečné A/B měření a neprázdné přetoky nebyly na tomto účtu dostupné k ověření.
 - Konvence časové značky (začátek/konec intervalu) není v návodu jednoznačná.
   Implementace používá začátek intervalu; před ostrým použitím porovnejte s Distribucí24.
