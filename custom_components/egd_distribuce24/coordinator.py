@@ -1,4 +1,4 @@
-"""Daily downloads and replayable historical statistics."""
+"""Hourly downloads and replayable historical statistics."""
 
 import copy
 import logging
@@ -11,7 +11,8 @@ from homeassistant.helpers.storage import Store
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .api import PRAGUE, ApiError, AuthenticationError
-from .const import CONF_EXPORT, DOMAIN, PROFILES
+from .const import CONF_EXPORT, DOMAIN, PROFILES, profile_name
+from .costs import capture_schedules, cost_statistics, update_journal
 from .energy import complete_hours, statistics
 
 _LOGGER = logging.getLogger(__name__)
@@ -26,6 +27,7 @@ class EgdCoordinator(DataUpdateCoordinator):
         self.entry = entry
         self.store = Store(hass, 1, f"{DOMAIN}.{entry.entry_id}")
         self.archive = {"streams": {}, "last_sync": None}
+        self.hdo = None
 
     async def _async_setup(self):
         saved = await self.store.async_load()
@@ -35,6 +37,33 @@ class EgdCoordinator(DataUpdateCoordinator):
 
     def _publish(self, archive):
         for key, stream in archive["streams"].items():
+            if stream.get("cost_ledger") and archive.get("last_sync"):
+                end = datetime.combine(
+                    datetime.fromisoformat(archive["last_sync"]).astimezone(PRAGUE).date(),
+                    time.min,
+                    PRAGUE,
+                ).astimezone(UTC)
+                costs = cost_statistics(stream.get("quarters", {}), stream["cost_ledger"], end)
+                stream["priced_hours"] = costs["priced_hours"]
+                for kind, label in (
+                    ("energy_cost", "Cena spotřeby"),
+                    ("standing_cost", "Stálé platby"),
+                    ("total_cost", "Celkové náklady"),
+                ):
+                    if costs[kind]:
+                        async_add_external_statistics(
+                            self.hass,
+                            {
+                                "statistic_id": f"{DOMAIN}:{key}_{kind}",
+                                "source": DOMAIN,
+                                "name": f"EG.D {stream['ean']} {label}",
+                                "unit_of_measurement": "CZK",
+                                "unit_class": None,
+                                "has_sum": True,
+                                "mean_type": StatisticMeanType.NONE,
+                            },
+                            costs[kind],
+                        )
             rows = statistics(stream["hours"])
             if not rows:
                 continue
@@ -43,7 +72,7 @@ class EgdCoordinator(DataUpdateCoordinator):
                 {
                     "statistic_id": f"{DOMAIN}:{key}",
                     "source": DOMAIN,
-                    "name": f"EG.D {stream['ean']} {stream['profile']}",
+                    "name": f"EG.D {stream['ean']} {profile_name(self.entry.data, stream['profile'])}",
                     "unit_of_measurement": "kWh",
                     "unit_class": "energy",
                     "has_sum": True,
@@ -54,13 +83,6 @@ class EgdCoordinator(DataUpdateCoordinator):
 
     async def _async_update_data(self):
         now = datetime.now(PRAGUE)
-        previous = self.archive.get("last_sync")
-        if previous:
-            last = datetime.fromisoformat(previous).astimezone(PRAGUE)
-            if (last.date() == now.date() and last.time() >= time(12, 17)) or now.time() < time(
-                12, 17
-            ):
-                return self.archive
         # Yesterday ends at midnight in Prague, not midnight UTC.
         end = datetime.combine(now.date(), time.min, PRAGUE).astimezone(UTC)
         draft = copy.deepcopy(self.archive)
@@ -90,8 +112,49 @@ class EgdCoordinator(DataUpdateCoordinator):
                     start = end - timedelta(days=30)
                     if stream["queried_until"]:
                         start = datetime.fromisoformat(stream["queried_until"]) - timedelta(days=14)
+                    config = self.entry.data.get("cost_settings", {}).get(meter["ean"])
+                    if profile != PROFILES[meter["typMereni"]][0]:
+                        config = None  # A fixed fee belongs to the meter's import only.
+                    if config:
+                        hdo_settings = self.entry.data.get("hdo_settings", {}).get(meter["ean"])
+                        hdo_data = (self.hdo.data or {}).get(meter["ean"]) if self.hdo else None
+                        update_journal(
+                            stream.setdefault("cost_ledger", {}),
+                            config,
+                            hdo_settings,
+                            (hdo_data or {}).get("records"),
+                        )
+                        if (
+                            config["backfill_prices"]
+                            and stream.get("cost_backfill_revision") != config["effective_from"]
+                        ):
+                            start = min(
+                                start,
+                                datetime.combine(
+                                    datetime.fromisoformat(config["backfill_from"]).date(),
+                                    time.min,
+                                    PRAGUE,
+                                ).astimezone(UTC),
+                            )
                     readings = await self.client.readings(meter["ean"], profile, start, end)
-                    stream["hours"].update(complete_hours(readings))
+                    hours = complete_hours(readings)
+                    stream["hours"].update(hours)
+                    if config:
+                        quarters = stream.setdefault("quarters", {})
+                        for reading in readings:
+                            hour = reading.timestamp.replace(minute=0, second=0, microsecond=0)
+                            if hour.isoformat() in hours:
+                                quarters[reading.timestamp.isoformat()] = {
+                                    "value": str(reading.value),
+                                    "status": reading.status,
+                                }
+                        stream["cost_backfill_revision"] = config["effective_from"]
+                        capture_schedules(
+                            stream["cost_ledger"],
+                            config["effective_from"],
+                            quarters,
+                            (hdo_data or {}).get("records"),
+                        )
                     stream["queried_until"] = end.isoformat()
                     if readings:
                         newest = readings[-1]

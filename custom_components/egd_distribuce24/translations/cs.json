@@ -4,30 +4,74 @@
     "step": {
       "user": {
         "title": "Připojení k Distribuci24",
-        "description": "Zadejte údaje vygenerované v Distribuci24 v sekci Správa účtů → Vzdálený přístup – OpenAPI. V dalším kroku vyberete odběrná místa.",
-        "data": {"client_id": "Client ID", "client_secret": "Client secret", "include_export": "Stahovat také přetoky do sítě"}
+        "description": "Zadejte údaje vygenerované v Distribuci24 v sekci Správa účtů → Vzdálený přístup – OpenAPI. V dalším kroku vyberete odběrná místa. Vlastní názvy se použijí u senzorů a v panelu Energie. Při výběru více míst budou společné; místa rozlišuje EAN.",
+        "data": {
+          "client_id": "Client ID",
+          "client_secret": "Client secret",
+          "include_export": "Stahovat také přetoky do sítě",
+          "import_name": "Název odběru",
+          "export_name": "Název dodávky / prodeje"
+        }
       },
       "meters": {
         "title": "Výběr odběrných míst",
         "description": "Vyberte jedno nebo více odběrných míst. Nabízena jsou podporovaná měření A, B a C1. Stahovat se budou pouze vybraná místa.",
-        "data": {"meters": "Odběrná místa (EAN)"}
+        "data": {
+          "meters": "Odběrná místa (EAN)"
+        }
       },
       "reauth_confirm": {
         "title": "Obnova přístupových údajů",
         "description": "Nové údaje musí umožňovat přístup ke všem dříve vybraným odběrným místům.",
-        "data": {"client_id": "Client ID", "client_secret": "Client secret"}
+        "data": {
+          "client_id": "Client ID",
+          "client_secret": "Client secret"
+        }
+      },
+      "hdo": {
+        "title": "HDO a ceny – {ean}",
+        "description": "Volitelně zapněte NT/VT pro toto odběrné místo. Ceny zadávejte v Kč/kWh, obě na stejném základě (např. včetně DPH). Při více programech vyberte program pro tarif elektroměru; samotné relé TUV může mít jiné časy. Nastavení lze později změnit přes Překonfigurovat.",
+        "data": {
+          "enable_hdo": "Sledovat NT/VT",
+          "postcode": "PSČ",
+          "hdo_code": "Kód HDO / spínací program",
+          "price_nt": "Cena NT (Kč/kWh)",
+          "price_vt": "Cena VT (Kč/kWh)",
+          "schedule": "Program / relé"
+        }
+      },
+      "costs": {
+        "title": "Náklady a historie – {ean}",
+        "description": "Zadejte součet stálých měsíčních plateb v Kč (např. dodavatel a jistič), se stejným zahrnutím DPH jako ceny NT/VT. Bez doplnění se nové ceny použijí až od uložení nastavení. Volba doplnění použije aktuální ceny a paušál pouze tam, kde historické ceny chybějí, zpět až k datu RRRR-MM-DD. Existující ceny zůstanou zachované. Historické NT/VT závisí na dostupném rozvrhu HDO; nejde o vyúčtování dodavatele.",
+        "data": {
+          "monthly_fee": "Stálá platba celkem (Kč/měsíc)",
+          "backfill_prices": "Doplnit chybějící historické ceny aktuálními hodnotami",
+          "backfill_from": "Doplnit zpět až k datu (RRRR-MM-DD)"
+        }
       }
     },
     "error": {
       "invalid_auth": "Přístupové údaje byly odmítnuty.",
       "cannot_connect": "K EG.D se nelze připojit. Zkuste to později.",
-      "select_meters": "Vyberte alespoň jedno dostupné odběrné místo."
+      "select_meters": "Vyberte alespoň jedno dostupné odběrné místo.",
+      "invalid_hdo": "Zadejte platné PSČ a kód HDO.",
+      "invalid_price": "Zadejte nezáporné ceny NT a VT v Kč/kWh.",
+      "unknown_postcode": "PSČ nebylo nalezeno v seznamu EG.D.",
+      "unknown_hdo": "Pro zadané údaje nebyl nalezen program HDO.",
+      "ambiguous_hdo": "Program není jednoznačný. Ověřte kód a vybrané relé.",
+      "select_hdo_schedule": "Kód obsahuje více programů. Vyberte program pro tarif elektroměru.",
+      "cannot_connect_hdo": "Rozpis HDO se nepodařilo stáhnout. Zkuste to později nebo HDO vypněte.",
+      "no_schedule": "Pro dnešní den není dostupný platný rozpis.",
+      "invalid_schedule": "Rozpis HDO má nepodporovaný nebo neplatný formát.",
+      "invalid_monthly_fee": "Zadejte nezápornou stálou měsíční platbu.",
+      "invalid_backfill_date": "Zadejte platné datum RRRR-MM-DD, které není v budoucnosti."
     },
     "abort": {
       "already_configured": "Některé z vybraných odběrných míst už je nastavené.",
       "no_supported_meters": "Účet neobsahuje podporovaná odběrná místa s měřením A, B nebo C1.",
       "missing_selected_meters": "Nové údaje neumožňují přístup ke všem vybraným odběrným místům.",
-      "reauth_successful": "Přístupové údaje byly aktualizovány."
+      "reauth_successful": "Přístupové údaje byly aktualizovány.",
+      "reconfigure_successful": "Nastavení tarifů bylo aktualizováno."
     }
   }
 }

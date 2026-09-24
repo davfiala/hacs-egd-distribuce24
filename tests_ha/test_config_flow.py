@@ -35,6 +35,14 @@ async def test_select_one_of_multiple_meters(hass):
         result = await hass.config_entries.flow.async_configure(
             result["flow_id"], {"meters": [OTHER]}
         )
+        assert result["step_id"] == "hdo"
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"], {"enable_hdo": False}
+        )
+        assert result["step_id"] == "costs"
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"], {"monthly_fee": "0", "backfill_prices": False}
+        )
         assert result["type"] == FlowResultType.CREATE_ENTRY
         assert result["data"]["meters"] == [OTHER]
         await hass.async_block_till_done()

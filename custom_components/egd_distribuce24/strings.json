@@ -4,30 +4,74 @@
     "step": {
       "user": {
         "title": "Connect to Distribuce24",
-        "description": "Enter credentials generated in Distribuce24 under Account management → Remote access – OpenAPI. Meter selection follows.",
-        "data": {"client_id": "Client ID", "client_secret": "Client secret", "include_export": "Download energy exported to the grid"}
+        "description": "Enter credentials generated in Distribuce24 under Account management → Remote access – OpenAPI. Meter selection follows. Display names are used for sensors and Energy statistics. They apply to all selected meters, distinguished by EAN.",
+        "data": {
+          "client_id": "Client ID",
+          "client_secret": "Client secret",
+          "include_export": "Download energy exported to the grid",
+          "import_name": "Import display name",
+          "export_name": "Export / sale display name"
+        }
       },
       "meters": {
         "title": "Select electricity meters",
         "description": "Select one or more meters. Only supported A, B and C1 meters are shown. Only selected meters will be downloaded.",
-        "data": {"meters": "Electricity meters (EAN)"}
+        "data": {
+          "meters": "Electricity meters (EAN)"
+        }
       },
       "reauth_confirm": {
         "title": "Renew Distribuce24 credentials",
         "description": "New credentials must grant access to all previously selected meters.",
-        "data": {"client_id": "Client ID", "client_secret": "Client secret"}
+        "data": {
+          "client_id": "Client ID",
+          "client_secret": "Client secret"
+        }
+      },
+      "hdo": {
+        "title": "HDO and prices – {ean}",
+        "description": "Optionally enable NT/VT for this meter. Enter both prices in CZK/kWh on the same basis, e.g. including VAT. If multiple programs exist, select the meter tariff program; a water-heating relay can have different times. Use Reconfigure to change these settings later.",
+        "data": {
+          "enable_hdo": "Track NT/VT",
+          "postcode": "Postcode",
+          "hdo_code": "HDO code / switching program",
+          "price_nt": "NT price (CZK/kWh)",
+          "price_vt": "VT price (CZK/kWh)",
+          "schedule": "Program / relay"
+        }
+      },
+      "costs": {
+        "title": "Costs and history – {ean}",
+        "description": "Enter the total monthly fixed fee in CZK, using the same VAT basis as NT/VT prices. Without backfill, new prices apply from saving these settings. Backfill applies current prices and fees only where historical prices are missing, back to YYYY-MM-DD. Existing prices are preserved. Historical NT/VT depends on available HDO schedules; this is not a supplier bill.",
+        "data": {
+          "monthly_fee": "Total fixed fee (CZK/month)",
+          "backfill_prices": "Fill missing historical prices with current values",
+          "backfill_from": "Backfill from date (YYYY-MM-DD)"
+        }
       }
     },
     "error": {
       "invalid_auth": "Credentials were rejected.",
       "cannot_connect": "Unable to connect to EG.D. Try again later.",
-      "select_meters": "Select at least one available meter."
+      "select_meters": "Select at least one available meter.",
+      "invalid_hdo": "Enter a valid postcode and HDO code.",
+      "invalid_price": "Enter non-negative NT and VT prices in CZK/kWh.",
+      "unknown_postcode": "Postcode not found in the EG.D catalog.",
+      "unknown_hdo": "No matching HDO program found.",
+      "ambiguous_hdo": "The program is ambiguous. Check the code and relay.",
+      "select_hdo_schedule": "This code has multiple programs. Select the meter tariff program.",
+      "cannot_connect_hdo": "Unable to download HDO. Retry later or disable HDO.",
+      "no_schedule": "No valid schedule for today.",
+      "invalid_schedule": "Unsupported or invalid HDO schedule.",
+      "invalid_monthly_fee": "Enter a non-negative monthly fixed fee.",
+      "invalid_backfill_date": "Enter a valid YYYY-MM-DD date that is not in the future."
     },
     "abort": {
       "already_configured": "At least one selected meter is already configured.",
       "no_supported_meters": "This account has no supported A, B or C1 meters.",
       "missing_selected_meters": "New credentials do not provide access to all selected meters.",
-      "reauth_successful": "Credentials updated successfully."
+      "reauth_successful": "Credentials updated successfully.",
+      "reconfigure_successful": "Tariff settings updated."
     }
   }
 }

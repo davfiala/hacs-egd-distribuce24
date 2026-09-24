@@ -8,7 +8,8 @@ from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .api import VALID_STATUSES
-from .const import DOMAIN
+from .const import DOMAIN, profile_name
+from .hdo_sensor import HdoSensor
 
 
 async def async_setup_entry(hass, entry, async_add_entities):
@@ -24,10 +25,19 @@ async def async_setup_entry(hass, entry, async_add_entities):
                     EgdSensor(coordinator, key, kind)
                     for kind in ("energy", "measurement_time", "last_sync")
                 )
+                stream = coordinator.data["streams"][key]
+                if "cost_ledger" in stream:
+                    entities.append(EgdSensor(coordinator, key, "monthly_fee"))
         async_add_entities(entities)
 
     add_new()
     entry.async_on_unload(coordinator.async_add_listener(add_new))
+    if coordinator.hdo is not None:
+        async_add_entities(
+            HdoSensor(coordinator.hdo, ean, kind)
+            for ean in coordinator.hdo.settings
+            for kind in ("tariff", "price", "next_change")
+        )
 
 
 class EgdSensor(CoordinatorEntity, SensorEntity):
@@ -39,11 +49,12 @@ class EgdSensor(CoordinatorEntity, SensorEntity):
         stream = coordinator.data["streams"][key]
         self._attr_unique_id = f"{key}_{kind}"
         self._attr_name = (
-            f"{stream['profile']} "
+            f"{profile_name(coordinator.entry.data, stream['profile'])} "
             + {
                 "energy": "Poslední čtvrthodina",
                 "measurement_time": "Čas měření",
                 "last_sync": "Poslední synchronizace",
+                "monthly_fee": "Stálá měsíční platba",
             }[kind]
         )
         self._attr_device_info = DeviceInfo(
@@ -52,7 +63,10 @@ class EgdSensor(CoordinatorEntity, SensorEntity):
             name=f"EG.D {stream['ean']}",
             model="Distribuce24 OpenAPI",
         )
-        if kind == "energy":
+        if kind == "monthly_fee":
+            self._attr_device_class = SensorDeviceClass.MONETARY
+            self._attr_native_unit_of_measurement = "CZK"
+        elif kind == "energy":
             self._attr_device_class = SensorDeviceClass.ENERGY
             self._attr_native_unit_of_measurement = UnitOfEnergy.KILO_WATT_HOUR
             # No state_class: delayed interval energy must not be counted at polling time.
@@ -62,6 +76,9 @@ class EgdSensor(CoordinatorEntity, SensorEntity):
 
     @property
     def native_value(self):
+        if self.kind == "monthly_fee":
+            stream = self.coordinator.data["streams"][self.key]
+            return float(self.coordinator.entry.data["cost_settings"][stream["ean"]]["monthly_fee"])
         latest = self.coordinator.data["streams"][self.key]["latest"]
         if self.kind == "last_sync":
             value = self.coordinator.data["last_sync"]
@@ -75,6 +92,16 @@ class EgdSensor(CoordinatorEntity, SensorEntity):
     @property
     def extra_state_attributes(self):
         stream = self.coordinator.data["streams"][self.key]
+        if self.kind == "monthly_fee":
+            return {
+                "period": "month",
+                "priced_hours": stream.get("priced_hours", 0),
+                "archived_energy_hours": len(stream["hours"]),
+                **{
+                    kind + "_statistic_id": f"{DOMAIN}:{self.key}_{kind}"
+                    for kind in ("energy_cost", "standing_cost", "total_cost")
+                },
+            }
         return {
             "profile": stream["profile"],
             "statistic_id": f"{DOMAIN}:{self.key}",

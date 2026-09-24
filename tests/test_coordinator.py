@@ -58,9 +58,11 @@ def environment(monkeypatch):
     module = importlib.import_module("egd_client_test.coordinator")
 
     class FixedTime(datetime):
+        current = datetime(2026, 9, 21, 14, 37, tzinfo=UTC)
+
         @classmethod
         def now(cls, tz=None):
-            return datetime(2026, 9, 21, 14, 37, tzinfo=UTC).astimezone(tz)
+            return cls.current.astimezone(tz)
 
     monkeypatch.setattr(module, "datetime", FixedTime)
     entry = types.SimpleNamespace(entry_id="test", data={"meters": [EAN], "include_export": False})
@@ -97,11 +99,35 @@ async def test_export_opt_in(environment):
 
 
 @pytest.mark.asyncio
-async def test_same_day_no_network_poll(environment):
-    coordinator, client, _, _ = environment
+async def test_friendly_names_preserve_statistic_ids(environment):
+    coordinator, _, published, _ = environment
+    coordinator.entry.data.update(
+        {
+            "include_export": True,
+            "import_name": " Spotřeba domu ",
+            "export_name": "Prodej FVE",
+        }
+    )
     await coordinator._async_update_data()
+    assert published[0][1]["name"] == f"EG.D {EAN} Spotřeba domu"
+    assert published[0][1]["statistic_id"] == f"egd_distribuce24:{EAN}_dcqc"
+    assert published[1][1]["name"] == f"EG.D {EAN} Prodej FVE"
+    assert published[1][1]["statistic_id"] == f"egd_distribuce24:{EAN}_dsqc"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("hour", [5, 14])
+async def test_next_hour_downloads_again_before_and_after_noon(environment, hour):
+    coordinator, client, published, module = environment
+    module.datetime.current = datetime(2026, 9, 21, hour, 37, tzinfo=UTC)
     await coordinator._async_update_data()
-    assert client.meters.await_count == 1
+    first_sync = coordinator.archive["last_sync"]
+    module.datetime.current += timedelta(hours=1)
+    await coordinator._async_update_data()
+    assert client.meters.await_count == 2
+    assert client.readings.await_count == 2
+    assert coordinator.archive["last_sync"] != first_sync
+    assert published[0] == published[1]
 
 
 @pytest.mark.asyncio
@@ -137,3 +163,33 @@ async def test_removed_meter_not_silently_ignored(environment):
     client.meters.return_value = []
     with pytest.raises(module.UpdateFailed):
         await coordinator._async_update_data()
+
+
+@pytest.mark.asyncio
+async def test_cost_backfill_persists_quarters_and_does_not_charge_export(environment):
+    from egd_client_test.costs import validate_cost_settings
+
+    coordinator, client, published, module = environment
+    coordinator.entry.data.update(
+        {
+            "include_export": True,
+            "cost_settings": {
+                EAN: validate_cost_settings(
+                    {"monthly_fee": "300", "backfill_prices": True, "backfill_from": "2026-08-01"},
+                    module.datetime.current,
+                )
+            },
+            "hdo_settings": {EAN: {"price_nt": 5, "price_vt": 5}},
+        }
+    )
+    data = await coordinator._async_update_data()
+    assert client.readings.await_args_list[0].args[2] == datetime(2026, 7, 31, 22, tzinfo=UTC)
+    assert len(data["streams"][EAN + "_dcqc"]["quarters"]) == 4
+    assert "cost_ledger" not in data["streams"][EAN + "_dsqc"]
+    money = [item for item in published if item[1]["unit_of_measurement"] == "CZK"]
+    assert len(money) == 3
+    assert money[0][2][-1]["sum"] == 2
+    published.clear()
+    await coordinator._async_update_data()
+    assert client.readings.await_args_list[2].args[2] > datetime(2026, 8, 1, tzinfo=UTC)
+    assert [item for item in published if item[1]["unit_of_measurement"] == "CZK"] == money
