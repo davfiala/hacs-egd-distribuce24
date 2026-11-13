@@ -38,6 +38,12 @@ async def async_setup_entry(hass, entry, async_add_entities):
             for ean in coordinator.hdo.settings
             for kind in ("tariff", "price", "next_change")
         )
+        async_add_entities(
+            HdoSensor(coordinator.hdo, ean, kind, secondary=True)
+            for ean, settings in coordinator.hdo.settings.items()
+            if settings.get("secondary")
+            for kind in ("tariff", "next_change")
+        )
 
 
 class EgdSensor(CoordinatorEntity, SensorEntity):

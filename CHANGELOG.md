@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.1 – 2026-11-13
+
+- Druhý nezávislý signál HDO pro každé odběrné místo (např. TUV a vytápění),
+  vlastní názvy, kódy a výběr relé. Druhý signál nemění tarif ani výpočet nákladů.
+- Zachování původních identifikátorů senzorů. Ověřeno 86 jednotkovými testy, bez spuštění HA.
+
 ## 0.2.0 – 2026-09-24
 
 - Stahování měření každou hodinu, vlastní názvy odběru a dodávky při nastavení.

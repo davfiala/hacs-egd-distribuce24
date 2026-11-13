@@ -30,14 +30,15 @@
       },
       "hdo": {
         "title": "HDO and prices – {ean}",
-        "description": "Optionally enable NT/VT for this meter. Enter both prices in CZK/kWh on the same basis, e.g. including VAT. If multiple programs exist, select the meter tariff program; a water-heating relay can have different times. Use Reconfigure to change these settings later.",
+        "description": "Optionally enable NT/VT for this meter. Enter both prices in CZK/kWh on the same basis, e.g. including VAT. If multiple programs exist, select the meter tariff program; a water-heating relay can have different times. Use Reconfigure to change these settings later. This first program determines the electricity tariff and price. A separate step follows for a second signal, e.g. hot water.",
         "data": {
           "enable_hdo": "Track NT/VT",
           "postcode": "Postcode",
           "hdo_code": "HDO code / switching program",
           "price_nt": "NT price (CZK/kWh)",
           "price_vt": "VT price (CZK/kWh)",
-          "schedule": "Program / relay"
+          "schedule": "Program / relay",
+          "name": "First signal name (e.g. Heating)"
         }
       },
       "costs": {
@@ -47,6 +48,17 @@
           "monthly_fee": "Total fixed fee (CZK/month)",
           "backfill_prices": "Fill missing historical prices with current values",
           "backfill_from": "Backfill from date (YYYY-MM-DD)"
+        }
+      },
+      "hdo_secondary": {
+        "title": "Second HDO signal – {ean}",
+        "description": "Optional independent program, e.g. hot water. Use the same HDO code with another relay, or a different code. Tracks scheduled activity and next change without affecting electricity prices or costs. Actual receiver switching is not measured.",
+        "data": {
+          "enable_hdo": "Enable second HDO signal",
+          "name": "Signal name (e.g. Hot water)",
+          "postcode": "Postcode",
+          "hdo_code": "HDO code / switching program",
+          "schedule": "Program / relay"
         }
       }
     },

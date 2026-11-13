@@ -30,14 +30,15 @@
       },
       "hdo": {
         "title": "HDO a ceny – {ean}",
-        "description": "Volitelně zapněte NT/VT pro toto odběrné místo. Ceny zadávejte v Kč/kWh, obě na stejném základě (např. včetně DPH). Při více programech vyberte program pro tarif elektroměru; samotné relé TUV může mít jiné časy. Nastavení lze později změnit přes Překonfigurovat.",
+        "description": "Volitelně zapněte NT/VT pro toto odběrné místo. Ceny zadávejte v Kč/kWh, obě na stejném základě (např. včetně DPH). Při více programech vyberte program pro tarif elektroměru; samotné relé TUV může mít jiné časy. Nastavení lze později změnit přes Překonfigurovat. Tento první program určuje tarif a cenu elektřiny. Pro druhý signál, například TUV, následuje samostatný krok.",
         "data": {
           "enable_hdo": "Sledovat NT/VT",
           "postcode": "PSČ",
           "hdo_code": "Kód HDO / spínací program",
           "price_nt": "Cena NT (Kč/kWh)",
           "price_vt": "Cena VT (Kč/kWh)",
-          "schedule": "Program / relé"
+          "schedule": "Program / relé",
+          "name": "Název prvního signálu (např. Vytápění)"
         }
       },
       "costs": {
@@ -47,6 +48,17 @@
           "monthly_fee": "Stálá platba celkem (Kč/měsíc)",
           "backfill_prices": "Doplnit chybějící historické ceny aktuálními hodnotami",
           "backfill_from": "Doplnit zpět až k datu (RRRR-MM-DD)"
+        }
+      },
+      "hdo_secondary": {
+        "title": "Druhý signál HDO – {ean}",
+        "description": "Volitelný samostatný program, například TUV. Lze použít stejný kód HDO a jiné relé, nebo jiný kód. Sleduje stav a příští změnu podle rozvrhu; neovlivňuje tarif ani náklady. Skutečné sepnutí přijímače se neměří.",
+        "data": {
+          "enable_hdo": "Zapnout druhý signál HDO",
+          "name": "Název signálu (např. TUV)",
+          "postcode": "PSČ",
+          "hdo_code": "Kód HDO / spínací program",
+          "schedule": "Program / relé"
         }
       }
     },

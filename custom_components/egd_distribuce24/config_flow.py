@@ -117,18 +117,26 @@ class EgdConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     )
                     records = select_records(*self._hdo_catalog, settings)
                     tariff_state(records, datetime.now(UTC))
+                    settings["name"] = user_input.get("name", "").strip() or "Vytápění"
+                    if saved.get("secondary"):
+                        settings["secondary"] = saved["secondary"]
                     self._hdo_settings[ean] = settings
                 except HdoError as err:
                     errors["base"] = str(err)
             else:
                 self._hdo_settings.pop(ean, None)
             if not errors:
+                if user_input.get("enable_hdo", False):
+                    return await self.async_step_hdo_secondary()
                 return await self.async_step_costs()
         schema = {vol.Optional("enable_hdo", default=values.get("enable_hdo", bool(saved))): bool}
+        schema[vol.Optional("name", default=values.get("name", "Vytápění"))] = vol.All(
+            str, vol.Length(max=80)
+        )
         for key in ("postcode", "hdo_code", "price_nt", "price_vt"):
             schema[vol.Optional(key, default=str(values.get(key, "")))] = str
         if len(choices) > 1:
-            default = values.get("schedule")
+            default = values.get("schedule", saved.get("schedule"))
             if default not in choices:
                 default = next((name for name in choices if "relé1" in name), choices[0])
             schema[vol.Required("schedule", default=default)] = SelectSelector(
@@ -136,6 +144,56 @@ class EgdConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             )
         return self.async_show_form(
             step_id="hdo",
+            data_schema=vol.Schema(schema),
+            errors=errors,
+            description_placeholders={"ean": ean},
+        )
+
+    async def async_step_hdo_secondary(self, user_input=None):
+        ean = self._selected[self._hdo_index]
+        primary = self._hdo_settings[ean]
+        saved = primary.get("secondary", {})
+        values = user_input if user_input is not None else saved
+        errors, choices = {}, []
+        if user_input is not None:
+            if user_input.get("enable_hdo", False):
+                try:
+                    settings = normalize_settings({**user_input, "price_nt": 0, "price_vt": 0})
+                    records = select_records(*self._hdo_catalog, settings)
+                    choices = available_plans(records)
+                    if len(choices) > 1 and user_input.get("schedule") not in choices:
+                        raise HdoError("select_hdo_schedule")
+                    settings["schedule"] = (
+                        user_input.get("schedule") if len(choices) > 1 else choices[0]
+                    )
+                    tariff_state(select_records(*self._hdo_catalog, settings), datetime.now(UTC))
+                    settings.pop("price_nt")
+                    settings.pop("price_vt")
+                    settings["name"] = user_input.get("name", "").strip() or "TUV"
+                    primary["secondary"] = settings
+                except HdoError as err:
+                    errors["base"] = str(err)
+            else:
+                primary.pop("secondary", None)
+            if not errors:
+                return await self.async_step_costs()
+        schema = {
+            vol.Optional("enable_hdo", default=values.get("enable_hdo", bool(saved))): bool,
+            vol.Optional("name", default=values.get("name", "TUV")): vol.All(
+                str, vol.Length(max=80)
+            ),
+            vol.Optional("postcode", default=values.get("postcode", primary["postcode"])): str,
+            vol.Optional("hdo_code", default=values.get("hdo_code", primary["hdo_code"])): str,
+        }
+        if len(choices) > 1:
+            default = values.get("schedule", saved.get("schedule"))
+            if default not in choices:
+                default = next((name for name in choices if "TUV" in name.upper()), choices[0])
+            schema[vol.Required("schedule", default=default)] = SelectSelector(
+                SelectSelectorConfig(options=choices, mode=SelectSelectorMode.DROPDOWN)
+            )
+        return self.async_show_form(
+            step_id="hdo_secondary",
             data_schema=vol.Schema(schema),
             errors=errors,
             description_placeholders={"ean": ean},

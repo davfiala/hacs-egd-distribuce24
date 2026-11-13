@@ -18,6 +18,10 @@ class HdoCoordinator(DataUpdateCoordinator):
             update_interval=timedelta(hours=1),
         )
         self.settings = entry.data.get("hdo_settings", {})
+        self.signal_settings = dict(self.settings)
+        for ean, settings in self.settings.items():
+            if settings.get("secondary"):
+                self.signal_settings[f"{ean}_secondary"] = settings["secondary"]
         self.client = HdoClient(session)
 
     async def _async_update_data(self):
@@ -27,7 +31,7 @@ class HdoCoordinator(DataUpdateCoordinator):
             raise UpdateFailed("EG.D HDO schedule could not be downloaded") from err
         now = datetime.now(UTC)
         result = {}
-        for ean, settings in self.settings.items():
+        for ean, settings in self.signal_settings.items():
             try:
                 selected = select_records(regions, records, settings)
                 tariff_state(selected, now)
